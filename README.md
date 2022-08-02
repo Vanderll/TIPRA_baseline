@@ -1,0 +1,1 @@
+This respository is code for the **ACPA array results** in the manuscript entitled **"Multifaceted Immune Dysregulation in Potentially Modifiable Pathways Characterizes Individuals At-Risk for Rheumatoid Arthritis"** 
