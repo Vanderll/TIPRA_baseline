@@ -1,0 +1,246 @@
+---
+title: 'TIP-RA Baseline: For Paper'
+author: "Lauren Vanderlinden"
+date: "Report generated: `r paste(format(Sys.Date(), '%B %d, %Y'))`"
+output:
+  html_document:
+    number_sections: no
+    theme: yeti
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+
+# Introduction
+
+This report is to include what ACPA analyses Kevin wants in the baseline paper (e-mail July 14, 2021).  
+
+### Outline of Analyses
+
+*1. Unstratified Analysis*
+
+"Perform the unstratified analysis on all 41 peptides, present this as aggregate levels and as pairwise comparisons between CCP- and CCP+, and then CCP+ and EarlyRA.  Present this as individual biomarkers and pairwise to see if there are any specific differences (or not)."
+
+I will include the 11 aggregate measures we talked about before, along with the 41 individual peptides.  I will report the pairwise comparisons for each of these (effect size and unadjusted p-value).  I will performed multiple testing comparison on the omnibus p-value for each ACPA variable (i.e. do any of the groups differ from eachother, regardless of what pairwse comparison).    
+
+**Methods:** We performed a linear regression using group (either CCP-, CCP+ or early RA) to predict ACPA abundance adjusting for age, sex and ever a smoker status.  Multiple testing adjustment was accounted for using the Bemjamini Hochberg false discovery rate (FDR) method on the F-test p-value for group effect.  Pairwise comparisons are reported.   
+
+*2. Stratified Analysis*
+
+Perform a linear model using group to predict ACPA abundance adjusting for age, sex and smoking stratified by genotype status.  In this report, the stratification is for SE positive and SE negative.    
+
+```{r, include=FALSE}
+rm(list=ls())
+
+library(readxl)
+library(kableExtra)
+library(ggplot2)
+library(RColorBrewer)
+#library(ggbiplot)
+library(factoextra)
+library(WGCNA)
+library(emmeans)
+library(table1)
+library(DT)
+```
+
+# Demographics
+
+
+Kevin, think this is what you want for the ACPA table 1.  I'm including the genotype I will stratify on later (0401), SE status (postive or negative based on at least 1 of any of the risk alleles) and the covariates adjusted for in the model.  If you want more/different variables in the table let me know.  
+
+
+```{r, warning=FALSE, error=FALSE, message=FALSE, echo=FALSE}
+wd = "R:/TIP-RA/LaurenV/baselineCrossSection/"
+load(file=paste0(wd, "data/forBaselineAnalysis.Rdata"))
+
+#in array matrix, remove the final 2 columns (CCP3Final and Converter) & also put in the aggregate (sum)
+array2= array[,-c(43:44)]
+sum.all = apply(array2, 1, sum)
+sum.all.log = log(sum.all)
+
+cilpArray = array2[,grep("CILP", colnames(array2))]
+sum.citCILP = apply(cilpArray[,grep("cit", colnames(cilpArray))], 1, sum)
+array3 = cbind(array2, sum.citCILP, sum.all, sum.all.log) 
+
+pheno.want = pheno[which(pheno$LabId %in% array$Labid),]
+pheno.want = pheno[,which(colnames(pheno) %in% c("LabId", "Analyze", "SE", "SECount", "0404Count", "0401Count", "Gender", "Age", "EverSmoke", "CurrentSmoker"))]
+
+forAnalysis = merge(pheno.want, array3, by.y="Labid", by.x="LabId")
+forAnalysis = forAnalysis[-which(forAnalysis$Analyze %in% c("BaselineReverter", "Do Not Analyze")),]
+
+forAnalysis$sum0401_0404 = forAnalysis$`0401Count`+ forAnalysis$`0404Count`
+forAnalysis$either0401_0404 = as.numeric(forAnalysis$sum0401_0404 > 0)
+
+###Look at the distribution of genotype variables;
+table1(~ SE + as.factor(SECount) + as.factor(`0401Count`) + EverSmoke + Gender + Age | Analyze, dat=forAnalysis)
+```
+
+# Aggregated Data
+
+Also going to include **11** different aggregated variables in these models as well.  They are: 
+
+```{r, echo=FALSE, message=FALSE, error=FALSE, warning=FALSE, fig.height = 2.5, fig.width = 3.5}
+forAnalysis$sum.citClusterin = forAnalysis$`Clusterin 221-240 cit cyclic (99)` + forAnalysis$`Clusterin 231-250 cit cyclic (8)`
+forAnalysis$sum.citFibrinogen = forAnalysis$`FibrinogenA 211-230 cit cyclic (9)` + forAnalysis$`FibrinogenA 563-583 cit 573 (33)` + forAnalysis$`FibrinogenA 616-635 cit3 cyclic (95)` + forAnalysis$`FibrinogenB 246-267 cit (86)` + forAnalysis$`FibrinogenB 285-305 cit (70)` + forAnalysis$`FibrinogenB 36-52 cit (61)` + forAnalysis$`FibrinogenB 54-74 cit 60 72 74 (62)` + forAnalysis$`FibrinogenB 62-81 cit 72 (58)` + forAnalysis$`FibrinogenB 62-81 cit 74 (88)`
+forAnalysis$sum.citH2A = forAnalysis$`H2A/a 1-20 cit cyclic (96)` + forAnalysis$`H2A/a-2 1-20 cit (66)`
+##uncit aggregated data
+forAnalysis$sum.vimentin = forAnalysis$`Vimentin 265-278 (14)` + forAnalysis$`Vimentin 58-77 cyclic (49)`
+forAnalysis$sum.tenascin = forAnalysis$`tenascin C 1 (7)` + forAnalysis$`tenascin C 5 (98)`
+forAnalysis$sum.H2A = forAnalysis$`H2A/a 1-20 cyclic (100)` + forAnalysis$`H2A/a-2 1-20 (27)`
+forAnalysis$sum.citH4 = forAnalysis$`H4 33-48 cit39 (94)` + forAnalysis$`H4 33-48 cit39 40 (79)`
+forAnalysis$sum.CILP = forAnalysis$`CILP 17-31 (90)` + forAnalysis$`CILP 297-311 (28)` + forAnalysis$`CILP 536-552 (91)` + forAnalysis$`CILP 775-792 (44)` + forAnalysis$`CILP 982-996 (21)` 
+
+aggTab = data.frame(variable = c("sum.all","sum.all.log", "sum.citCILP", "sum.citClusterin", "sum.citFibrinogen", "sum.citH2A", "sum.vitmentin", "sum.tenascin", "sum.H2A", "sum.H4", "sum.CILP"), desription=c("total of all 41 peptides on array", "logged version of sum.all", "sum of the 5 cit CILP peptides","sum of the 2 cit Clusterin peptides",  "sum of the 9 cit Fibrinogen peptides", "sum of the 2 cit H2A peptides", "sum of the 2 uncit Vimentin peptides","sum of the 2 uncit Tenascin peptides", "sum of the 2 uncit H2A peptides", "sum of the 2 uncit H4 peptides", "sum of the 5 uncit CILP peptides"))
+
+aggTab = aggTab[order(aggTab$variable),]
+
+kable(aggTab, row.names=F, align='l') %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F) 
+```
+
+**Notes:** 
+
+* Vimentin only has 1 cit peptide
+
+* Filaggrin only has 1 cit peptide and 1 uncit peptide, did not aggregate
+
+* Fibronectin only has 1 cit peptide, no uncit peptides
+
+* Biglycan only 1 cit peptide, no uncit peptides
+
+* B-actin only 1 cit peptide, no uncit peptides
+
+# Unstratified Analysis
+
+This is the basic linear model with group (either CCP-, CCP+ or early RA) predicting ACPA abundance level while adjusting for age, sex and ever smoker status.
+
+```{r, echo=FALSE, message=FALSE, error=FALSE, warning=FALSE, fig.height = 2.5, fig.width = 3.5}
+ACPA = "sum.all"
+ACPAvars = as.matrix(colnames(forAnalysis)[c(11:54, 57:64)])
+
+getUnstratifiedResults = function(ACPA){
+    tmp = forAnalysis
+    colnames(tmp)[which(colnames(tmp)==ACPA)]="outcome"
+    #model
+    mod.1 = lm(outcome~Analyze + Age + as.factor(Gender) + EverSmoke, dat=tmp)
+    mod.1.emm <- emmeans(mod.1, "Analyze")
+    #estimates
+    mod.1.meanEst = summary(mod.1.emm)[,2]
+
+    #pairwise comparisons
+    mod.1.pw = pairs(mod.1.emm)
+    mod.1.pw.est = prettyNum(round(-summary(mod.1.pw)$estimate, 0), big.mark=",")
+    mod.1.pw.pval = formatC(summary(mod.1.pw)$p.value, format="e", digits=2)
+  mod.1.pw.want = mod.1.pw.pval[c(1,3)]
+  
+  mod.1.pw.want2 = summary(mod.1.pw)$p.value[c(1,3)]
+        
+    mod.1.anova = anova(mod.1)
+    
+    mod.1.pw.pretty = paste0(mod.1.pw.est, " (", mod.1.pw.pval, ")")  
+    mod.1.overallP = mod.1.anova[1,5]
+
+    toReport = c(ACPA, mod.1.pw.pretty, mod.1.overallP) 
+    names(toReport) = c("feature", "CCP+ vs CCP-", "RA vs CCP-", "RA vs CCP+", "overall p-value")
+    #return(toReport)
+    toReport2 = c(ACPA, mod.1.meanEst, mod.1.pw.want)
+    #return(toReport2)
+    toReport3 = data.frame(feature=ACPA, CCPneg = mod.1.meanEst[1], CCPpos=mod.1.meanEst[2], RA=mod.1.meanEst[3], CCPneg.vs.CCPpos.pval = mod.1.pw.want2[1], CCPpos.vs.RA.pval = mod.1.pw.want2[2], overall.pval=mod.1.overallP)
+    return(toReport3)
+}
+
+
+#unstrat = data.frame(t(apply(as.matrix(ACPAvars), 1, function(a) getUnstratifiedResults(a))))
+
+unstrat = do.call(rbind, apply(as.matrix(ACPAvars), 1, function(a) getUnstratifiedResults(a)))
+
+
+colnames(unstrat) = c("feature", "CCP-", "CCP+", "RA", "CCP+ vs CCP- p-value", "RA vs CCP+ p-value", "overall p-value")
+#unstrat$FDR = p.adjust(as.numeric(unstrat$`overall p-value`), method="BH")
+
+#unstrat$overall.p.value = formatC(as.numeric(unstrat$overall.p.value), format="e", digits=2)
+#unstrat$FDR = formatC(unstrat$FDR, format="e", digits=2)
+
+#colnames(unstrat) = c("feature", "CCP+ vs CCP-", "RA vs CCP-", "RA vs CCP+", "overall p-value", "overall FDR")
+
+#colnames(unstrat) = c("feature", "CCP-", "CCP+", "Early RA", "CCP- vs CCP+ p-value", "CCP+ vs Early RA p-value")
+
+#write.csv(unstrat, file="R:/TIP-RA/LaurenV/baselineCrossSection/data/forPaper/table2.csv")
+
+### get just the list included in the paper
+rm = c("sum.all.log", "sum.citH4", "sum.H2A", "sum.tenascin", "sum.vimentin")
+unstrat2 = unstrat[-which(unstrat$feature %in% rm),]
+unstrat2$FDR = p.adjust(unstrat2$`overall p-value`, method="BH")
+
+
+write.csv(unstrat2, file="R:/TIP-RA/LaurenV/baselineCrossSection/data/forPaper/table2_v2.csv")
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE, fig.height = 3.5, fig.width = 4.5}
+datatable(unstrat,rownames=FALSE)
+```
+
+# Stratified Analysis
+
+Only going to report the genotype 0401 stratified results.  Here you are either 0401 positive (1 or 2 alleles) or negative (0 alleles).  Same linear method as mentioned above, but stratified.  I am NOT performing multiple testing on this.  
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE, fig.height = 3.5, fig.width = 4.5}
+geno= "geno0401_bi"
+
+forAnalysis$geno0401_bi = as.numeric(forAnalysis$`0401Count`==1 | forAnalysis$`0401Count`==2)
+
+getStratifiedResults = function(ACPA, geno){
+    tmp = forAnalysis
+    colnames(tmp)[which(colnames(tmp)==ACPA)]="outcome"
+    colnames(tmp)[which(colnames(tmp)==geno)]="geno"
+  
+    if(geno == "SE"){
+    tmp.neg = tmp[which(tmp$geno=="Neg"),]
+    tmp.pos = tmp[which(tmp$geno=="Pos"),]
+    }
+    
+    if(geno == "geno0401_bi" | geno == "geno0404_bi"| geno == "either0401_0404"){
+    tmp.neg = tmp[which(tmp$geno==0),]
+    tmp.pos = tmp[which(tmp$geno==1),]
+    }
+    
+    #positive model
+    mod.pos = lm(outcome~Analyze + Age + as.factor(Gender) + EverSmoke, dat=tmp.pos)
+    mod.pos.emm <- emmeans(mod.pos, "Analyze")
+    mod.pos.pw = pairs(mod.pos.emm)
+    pos.pw.est = prettyNum(round(-summary(mod.pos.pw)$estimate, 0), big.mark=",")
+    pos.pw.pval = formatC(summary(mod.pos.pw)$p.value, format="e", digits=2)
+          
+    mod.pos.meanEst = summary(mod.pos.emm)[,2]
+    pos.pw.pval2 = summary(mod.pos.pw)$p.value[c(1,3)]
+      
+    #negative model
+    mod.neg = lm(outcome~Analyze + Age + as.factor(Gender) + EverSmoke, dat=tmp.neg)
+    mod.neg.emm <- emmeans(mod.neg, "Analyze")
+    mod.neg.pw = pairs(mod.neg.emm)
+    neg.pw.est = prettyNum(round(-summary(mod.neg.pw)$estimate, 0), big.mark=",")
+    neg.pw.pval = formatC(summary(mod.neg.pw)$p.value, format="e", digits=2)
+    
+    mod.neg.meanEst = summary(mod.neg.emm)[,2]
+    neg.pw.pval2 = summary(mod.neg.pw)$p.value[c(1,3)]
+    
+    #toReport = data.frame(feature = ACPA, genotype = geno, comparison = c("CCP+ vs CCP-", "RA vs CCP-", "RA vs CCP+"), positive =  paste0(pos.pw.est, " (", pos.pw.pval, ")"), negative = paste0(neg.pw.est, " (", neg.pw.pval, ")")) 
+    #return(toReport)
+    toReport2 = data.frame(feature = ACPA, CCPneg.genoNeg =mod.neg.meanEst[1], CCPpos.genoNeg = mod.neg.meanEst[2], RA.genoNeg = mod.neg.meanEst[3], CCPneg.vs.CCPpos.genoNeg = neg.pw.pval2[1], CCPpos.vs.RA.genoNeg = neg.pw.pval2[2], CCPneg.genoPos =mod.pos.meanEst[1], CCPpos.genoPos = mod.pos.meanEst[2], RA.genoPos = mod.pos.meanEst[3], CCPneg.vs.CCPpos.genoPos = pos.pw.pval2[1], CCPpos.vs.RA.genoPos = pos.pw.pval2[2])
+    return(toReport2)
+}
+rm = c("sum.all.log", "sum.citH4", "sum.H2A", "sum.tenascin", "sum.vimentin")
+
+toTest.bi = data.frame(ACPAvars = ACPAvars, geno = rep("geno0401_bi", length(ACPAvars)))
+##get results;
+strat.bi = do.call(rbind, apply(toTest.bi, 1, function(a) getStratifiedResults(a[1], a[2])))
+
+write.csv(strat.bi, file="R:/TIP-RA/LaurenV/baselineCrossSection/data/forPaper/sACPAstrat.results.suppTab.csv")
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, eval=TRUE, fig.height = 3.5, fig.width = 4.5}
+
+colnames(strat.bi) = c("ACPA Feature", "Genotype", "Pairwise Comparison", "Positive Population: Difference (p-value)", "Negative Population: Difference (p-value)")
+datatable(strat.bi,rownames=FALSE)
+```
