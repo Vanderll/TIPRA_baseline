@@ -5,6 +5,6 @@ These are based on 2 different types of outcomes: either a continuous abundance 
 
 1. ACPA abundance levels: TIP-RA_baseline_forPaper.v2
 
-2. ACPA negative/positive: TIP-RA_baseline_forPaper.21July2022
+2. ACPA negative/positive: Code_forSuppementTable7and8
 
-**Data** Data used in these analyses are posted on this respository under the name: "TIPRA_baseline_ACPApeptideAssay.csv"
+**Data** Data used in these analyses are posted on this respository under the name: "SourceData_SupplementalTables7and8.csv"
