@@ -3,8 +3,8 @@ This respository is code for the **ACPA array results** in the manuscript entitl
 **2 Analyses Performed**
 These are based on 2 different types of outcomes: either a continuous abundance measure or a negative/positive call based being +3SD above the mean level in the control group.  
 
-1. ACPA abundance levels: TIP-RA_baseline_forPaper.v2
+1. ACPA abundance levels: Code_forSupplementTable4and6
 
-2. ACPA negative/positive: Code_forSuppementTable7and8
+2. ACPA negative/positive: Code_forSupplementTables5and7
 
-**Data** Data used in these analyses are posted on this respository under the name: "SourceData_SupplementalTables7and8.csv"
+**Data** Data used in these analyses are posted on this respository under the name: "SourceData_SupplementalTables4thru7_SupplementalFigures7thru10.csv"
