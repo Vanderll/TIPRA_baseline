@@ -7,4 +7,8 @@ These are based on 2 different types of outcomes: either a continuous abundance 
 
 2. ACPA negative/positive: Code_forSupplementTables5and7
 
-**Data** Data used in these analyses are posted on this respository under the name: "SourceData_SupplementalTables4thru7_SupplementalFigures7thru10.csv"
+**Data** Data used in these analyses are posted on this respository under the name: "SourceData_SupplementalTables7and8.csv"
+
+"SourceData_SupplementalTables7and8_vBP.csv" is the same data as above, but contains an additional variable called "MethylationLabId" that links this data to the DNA methylation data posted on GEO: GSE230446. 
+
+Please see "dataDictionary.xlsx" for descriptions of all variables in dataset.   
